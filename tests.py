@@ -66,5 +66,5 @@ def test_neural_back_propagation_example():
 
 #TESTS
 #test_neural_network_back_propagation()
-#test_neural_back_propagation_example()
-test_neural_network_back_propagation_xor()
+test_neural_back_propagation_example()
+#test_neural_network_back_propagation_xor()
