@@ -26,7 +26,7 @@ training_data_xor = [
 ]
 
 
-def test_neural_network_back_propagation():
+def test_neural_network_back_propagation_xor():
     a_neural_1 = neural.NeuralLayer(3, np.array([[0.8, 0.4, 0.3], [0.2, 0.9, 0.5]]))
     a_neural_2 = neural.NeuralLayer(1, np.array([[0.3], [0.5], [0.9]]))
     n = neural.NeuralNetwork()
@@ -45,5 +45,26 @@ def test_neural_network_back_propagation():
 
     return
 
+def test_neural_back_propagation_example():
+    w_layer_1 = np.array([[0.15, 0.20], [0.25, 0.3]]).T
+    w_layer_2 = np.array([[0.4, 0.50], [0.45, 0.55]]).T
+    bias_1 = (1, 0.35)
+    bias_2 = (1, 0.6)
+    a_neural_1 = neural.NeuralLayer(2, w_layer_1, bias_1)
+    a_neural_2 = neural.NeuralLayer(2, w_layer_2, bias_2)
+    n = neural.NeuralNetwork()
+    n.add_layer(a_neural_1)
+    n.add_layer(a_neural_2)
+
+    x = np.array([[0.05, 0.10]])
+    y_expected = np.array([[0.01, 0.99]])
+    for i in range(1, 10000):
+        print(n.forward_propagation(x))
+        print(n.get_total_error(y_expected))
+        n.back_propagation(y_expected)
+
+
 #TESTS
-test_neural_network_back_propagation()
+#test_neural_network_back_propagation()
+#test_neural_back_propagation_example()
+test_neural_network_back_propagation_xor()

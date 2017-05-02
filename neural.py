@@ -21,22 +21,29 @@ class NeuralLayer:
     # Resultado para cada neurona de aplicar los pesos a los parametros que le van a pasar a la neurona
     array_nodes_sumatory = None
 
+    # Bias
+    bias = None
+
+    #Error total
+    total_error = 0
+
     # Iniciador de neurona (digase constructor)
-    def __init__(self, internal_neurals_number, weights_in=[]):
+    def __init__(self, internal_neurals_number, weights_in=[], bias=(0, 0)):
         # Si no me dan pesos los pongo aleatorios
         if (len(weights_in) == 0):
             self.array_weights_in = np.random.rand(internal_neurals_number)
         else:
             n, m = np.shape(weights_in)
-            assert (n != internal_neurals_number)
+            assert (m == internal_neurals_number)
             self.array_weights_in = weights_in
+            self.bias = bias
 
         # Seteo el numero de neuronas
         self.internal_neurals_number = internal_neurals_number
 
     # Aplica los pesos a la variable de entrada values_matrix
     def apply_weights_to_params(self, values_matrix):
-        self.array_nodes_sumatory = np.dot(values_matrix, self.array_weights_in)
+        self.array_nodes_sumatory = np.dot(values_matrix, self.array_weights_in) + (self.bias[0] * self.bias[1])
 
     # Retorna array_nodes_sumatory
     def get_result_of_nodes_sumatory(self):
@@ -59,7 +66,7 @@ class NeuralNetwork:
     X = None
 
     # Constructor
-    def __init__(self, eta=0.2):
+    def __init__(self, eta=0.5):
 
         # Defino el coheficiente de aprendizaje
         self.eta = eta
@@ -89,13 +96,19 @@ class NeuralNetwork:
             in_parameters = sigmoid(self.layers[i].get_result_of_nodes_sumatory())
         return in_parameters
 
+    def get_total_error(self, y_expected):
+        output_layer = self.layers[self.layers_number-1]
+        errors = (1/2) * ((sigmoid(output_layer.get_result_of_nodes_sumatory()) - y_expected)**2)
+        return np.sum(errors)
+
+
     # Back Propagation para la entrada self.X (definida en forward_propagation) para el resultado esperado y_expected
     def back_propagation(self, y_expected):
         #Solo funciona para 1 capa oculta
         if self.layers_number == 2:
             # Calculo djdW1
             y_estimated = sigmoid(self.layers[1].get_result_of_nodes_sumatory())
-            diff_y_expected_and_estimated = np.subtract(y_expected, y_estimated)
+            diff_y_expected_and_estimated = -1 * np.subtract(y_expected, y_estimated)
             z3 = self.layers[1].get_result_of_nodes_sumatory()
             f_prime_on_z3 = sigmoid_prime(z3)
             delta_3 = np.multiply(diff_y_expected_and_estimated, f_prime_on_z3)
@@ -114,4 +127,4 @@ class NeuralNetwork:
             a_array_of_new_weights_2 = self.layers[1].get_array_weights_in() - self.eta * djdW2
             self.layers[0].set_array_weights_in(a_array_of_new_weights_1)
             self.layers[1].set_array_weights_in(a_array_of_new_weights_2)
-        return
+        return a_array_of_new_weights_1, a_array_of_new_weights_2
