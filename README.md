@@ -3,23 +3,36 @@
 ## Tareas
 
 ### Preprecesamiento
-1. carga
-2. conjunto entrenamiento y prueba
-3. standard scaling
+1. [x] carga
+2. [x] conjunto entrenamiento y prueba
+3. [x] standard scaling
 
 ### Perceptrón
 1. feedforward
-  * capas ocultas
-  * unidades ocultas
-  * función de activación
-  * inicialización de pesos
+  * [x] capas ocultas
+  * [x] unidades por capa
+  * [x] función de activación
+  * [x] inicialización de pesos
 2. backpropagation
-  * momemtum
-  * parámetros adaptativos
+  * [x] implementación base
+  * [ ] momento
+  * [ ] metaparámetros adaptativos
 3. entrenamiento
-  * estocástico, batch, mini-batch
-  * early-stopping
-  * gráficos
+  * [x] estocástico, batch, mini-batch
+  * [ ] early-stopping
+  * [x] gráficos
 
 ### Experimentos
-1. ...
+
+Variando:
+* #capas
+* #unidades por capa
+* momento (sí/no)
+* metaparámetros
+  * factor de aprendizaje
+  * factor de momento
+* metaparámetros adaptativos (sí/no)
+* standard scaling (sí/no)
+* inicialización de pesos
+* early-stopping (sí/no)
+* funciones de activación
