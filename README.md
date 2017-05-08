@@ -16,7 +16,7 @@
 2. backpropagation
   * [x] implementación base
   * [ ] momento
-  * [ ] metaparámetros adaptativos
+  * [ ] hiperparámetros adaptativos
 3. entrenamiento
   * [x] estocástico, batch, mini-batch
   * [ ] early-stopping
@@ -28,7 +28,7 @@ Variando:
 * #capas
 * #unidades por capa
 * momento (sí/no)
-* metaparámetros
+* hiperparámetros
   * factor de aprendizaje
   * factor de momento
 * metaparámetros adaptativos (sí/no)
