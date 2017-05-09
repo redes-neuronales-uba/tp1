@@ -14,14 +14,6 @@ get_ipython().magic('matplotlib inline')
 
 # ## Funciones
 
-# Distribuciones para inicializar los pesos. Son generadores que se inicializan con los parámetros de la distribución, devuelven la distribución que debe aceptar como argumento una tupla con la forma `(filas, columnas)`.
-
-# In[417]:
-
-def distribución_uniforme(menor=-0.1, mayor=0.1):
-    return lambda forma: np.random.uniform(low=menor, high=mayor, size=forma)
-
-
 # Funciones de costo para calcular el error.
 
 # In[118]:
@@ -154,7 +146,7 @@ class Capa:
 #                   | b'1  b'2 |  como el producto interno entre la salida (Y) y los pesos (W)
 # ```
 
-# In[249]:
+# In[467]:
 
 class Sinapsis:
   
@@ -163,7 +155,7 @@ class Sinapsis:
         self.destino = destino
         
         forma  = (origen.unidades + 1, destino.unidades)      
-        self.W = inicialización(forma)
+        self.W = np.random.uniform(low=inicialización[0], high=inicialización[1], size=forma)
         
         
     def propagar(self):
@@ -186,7 +178,7 @@ class Sinapsis:
 
 # Las siguientes funciones se utilizan durante el entrenamiento.
 
-# In[364]:
+# In[462]:
 
 def lotes(X, y, n):
     if n < 1: n = len(X)
@@ -206,11 +198,12 @@ def barajar(X, y):
 
 def graficar(evolución_error):
     plt.plot(evolución_error)
+    plt.yscale('log')
     plt.xlabel('épocas')
     plt.ylabel('error')
 
 
-# In[424]:
+# In[466]:
 
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
@@ -218,7 +211,7 @@ from sklearn.preprocessing import binarize
 
 class Red(BaseEstimator):
 
-    def __init__(self, activación=logística, inicialización=distribución_uniforme(), capas_ocultas=(),
+    def __init__(self, activación=logística, inicialización=(-1,1), capas_ocultas=(),
                  tamaño_lote=1, factor_aprendizaje=0.01, épocas=1000, tolerancia=1e-4):
         
         self.activación = activación
@@ -386,7 +379,7 @@ graficar(rn.evolución_error)
 
 # ### Grid search
 
-# In[428]:
+# In[465]:
 
 from sklearn.model_selection import GridSearchCV
 
@@ -394,18 +387,32 @@ estimador = make_pipeline(StandardScaler(), Red())
 
 grilla = {       
                   'red__activación': [logística, relu],
-              'red__inicialización': [distribución_uniforme(menor=-0.1, mayor=0.1),
-                                 distribución_uniforme(menor=-1.0, mayor=1.0),
-                                 distribución_uniforme(menor= 0.0, mayor=1.0),
-                                 distribución_uniforme(menor= 0.5, mayor=0.5)],
+              'red__inicialización': [(-0.1, 0.1),
+                                      (-1.0, 1.0),
+                                      ( 0.0, 1.0),
+                                      ( 0.5, 0.5)],
                'red__capas_ocultas': [[6], [9], [9,9], [12]],
                  'red__tamaño_lote': [-1, 1, 10],
-          'red__factor_aprendizaje': [.9, .5, .1, .01, .001]
+          'red__factor_aprendizaje': [.9, .5, .1, .01]
 }
 
 
-# In[ ]:
+# In[443]:
 
-clf = GridSearchCV(estimador, grilla, cv=5)
+clf = GridSearchCV(estimador, grilla, cv=5, n_jobs=-1)
 clf.fit(X_train, y_train)
+
+
+# In[464]:
+
+graficar(clf.best_estimator_.named_steps['red'].evolución_error)
+plt.savefig('error_mejor_estimador.png')
+
+
+# In[452]:
+
+import pickle
+
+with open('resultados_ej1.pickle', 'wb') as f:
+    pickle.dump(clf.cv_results_, f)
 
