@@ -93,7 +93,7 @@ def tanh():
 #     | eo3 |                          | ei3 |
 # ```
 
-# In[60]:
+# In[519]:
 
 class Capa:
     
@@ -111,11 +111,11 @@ class Capa:
         for sinapsis in self.feeds: sinapsis.propagar()
 
             
-    def retropropagar(self, eta):
+    def retropropagar(self, eta, mu):
         E = np.delete(self.ei, 0, axis=1) # remover vector columna de bias
         self.eo = E * self.derivada(self.i)
         
-        for sinapsis in self.backs: sinapsis.retropropagar(eta)
+        for sinapsis in self.backs: sinapsis.retropropagar(eta, mu)
         
         
     def estado(self):
@@ -146,7 +146,7 @@ class Capa:
 #                   | b'1  b'2 |  como el producto interno entre la salida (Y) y los pesos (W)
 # ```
 
-# In[467]:
+# In[520]:
 
 class Sinapsis:
   
@@ -154,8 +154,11 @@ class Sinapsis:
         self.origen  = origen
         self.destino = destino
         
-        forma  = (origen.unidades + 1, destino.unidades)      
-        self.W = np.random.uniform(low=inicialización[0], high=inicialización[1], size=forma)
+        forma        = (origen.unidades + 1, destino.unidades)
+        
+        self.V_prev  = np.zeros(forma)
+        self.V       = np.zeros(forma)
+        self.W       = np.random.uniform(low=inicialización[0], high=inicialización[1], size=forma)
         
         
     def propagar(self):
@@ -163,22 +166,38 @@ class Sinapsis:
         self.destino.i = np.dot(Y, self.W)
         
     
-    def retropropagar(self, eta):
+    def retropropagar(self, eta, mu):
         E = self.destino.eo # error de la capa posterior        
         self.origen.ei = np.dot(E, self.W.T)
-        self.ajustar_pesos(eta)
+        self.ajustar_pesos(eta, mu)
         
           
-    def ajustar_pesos(self, eta):
+    def ajustar_pesos(self, eta, mu):
+        """http://cs231n.github.io/neural-networks-3/
+        
+        Momento
+        v = mu * v - learning_rate * dx    # integrate velocity
+        x += v                             # integrate position
+
+        Momento de Nesterov
+        v_prev = v                         # back this up
+        v = mu * v - learning_rate * dx    # velocity update stays the same
+        x += -mu * v_prev + (1 + mu) * v   # position update changes form
+
+        Recommended annealing schedules for mu: 0.5, 0.9, 0.95, 0.99
+        """
+        
         Y = self.origen.o # actividad de la capa anterior
         E = self.destino.eo # error de la capa posterior
         
-        self.W += eta * np.dot(Y.T, E)
+        self.V_prev = self.V
+        self.V = mu * self.V + eta * np.dot(Y.T, E) 
+        self.W += -mu * self.V_prev + (1 + mu) * self.V
 
 
 # Las siguientes funciones se utilizan durante el entrenamiento.
 
-# In[462]:
+# In[503]:
 
 def lotes(X, y, n):
     if n < 1: n = len(X)
@@ -197,13 +216,14 @@ def barajar(X, y):
 
 
 def graficar(evolución_error):
-    plt.plot(evolución_error)
+    p, = plt.plot(evolución_error)
     plt.yscale('log')
     plt.xlabel('épocas')
     plt.ylabel('error')
+    return p
 
 
-# In[466]:
+# In[562]:
 
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
@@ -212,7 +232,8 @@ from sklearn.preprocessing import binarize
 class Red(BaseEstimator):
 
     def __init__(self, activación=logística, inicialización=(-1,1), capas_ocultas=(),
-                 tamaño_lote=1, factor_aprendizaje=0.01, épocas=1000, tolerancia=1e-4):
+                 tamaño_lote=1, factor_aprendizaje=0.01, épocas=1000, tolerancia=1e-4,
+                 early_stopping=False, factor_momento=0, factor_decaimiento=1, épocas_decaimiento=-1):
         
         self.activación = activación
         self.inicialización = inicialización
@@ -221,6 +242,10 @@ class Red(BaseEstimator):
         self.factor_aprendizaje = factor_aprendizaje
         self.épocas = épocas
         self.tolerancia = tolerancia
+        self.early_stopping = early_stopping
+        self.factor_momento = factor_momento
+        self.factor_decaimiento = factor_decaimiento
+        self.épocas_decaimiento = épocas_decaimiento
         
     
     def _preinicializar(self, n_entradas, n_salidas):
@@ -268,18 +293,33 @@ class Red(BaseEstimator):
         self._inicializar(*self._preinicializar(n_entradas, n_salidas))
         
         self.evolución_error = []
+        self.evolución_validación = []
         self.convergencia = False
+        
+        eta = self.factor_aprendizaje
+        
+        if self.early_stopping:
+            X, X_val, y, y_val = train_test_split(X, y, test_size=0.3)
+        
         
         for época in range(self.épocas):
             _X, _y = barajar(X, y)
             
+            if self.épocas_decaimiento > 0 and época % self.épocas_decaimiento == 0:
+                eta *= self.factor_decaimiento
+            
             y_pred = np.concatenate(
-                [self._aprender(lote_X, lote_y, self.factor_aprendizaje) for lote_X, lote_y in lotes(_X, _y, self.tamaño_lote)]
+                [self._aprender(lote_X, lote_y, eta, self.factor_momento) \
+                 for lote_X, lote_y in lotes(_X, _y, self.tamaño_lote)]
             )
             
             error = error_cuadrático_medio(_y, y_pred)
             self.evolución_error.append(error)
             
+            if self.early_stopping:
+                error_validación = error_cuadrático_medio(y_val, self.predict(X_val))
+                self.evolución_validación.append(error_validación)
+                
             if error <= self.tolerancia:
                 self.convergencia = True
                 break
@@ -287,12 +327,12 @@ class Red(BaseEstimator):
         return self
        
                  
-    def _aprender(self, X, y_obj, eta):
+    def _aprender(self, X, y_obj, eta, mu):
         y_pred = self.predict(X)
         
         self.capas['salida'].error(y_obj - y_pred) 
         
-        for _, capa in reversed(self.capas.items()): capa.retropropagar(eta)
+        for _, capa in reversed(self.capas.items()): capa.retropropagar(eta, mu)
         
         return y_pred
         
@@ -363,23 +403,24 @@ X_train, X_test, y_train, y_test = train_test_split(X_tp1, y_tp1, test_size=0.3,
 
 # transformación de los datos: se remueve la media y se lleva la varianza a la unidad
 # en base a las propiedades del conjunto de entrenamiento
-scaler = StandardScaler()
 
-rn = Red(capas_ocultas=[9], tamaño_lote=10, factor_aprendizaje=.35, épocas=3000)
+#scaler = StandardScaler()
 
-clf = make_pipeline(scaler, rn)
-clf.fit(X_train, y_train)
+#rn = Red(capas_ocultas=[9], tamaño_lote=10, factor_aprendizaje=.35, épocas=3000)
 
-print('efectividad', clf.score(X_test, y_test))
-print('error', rn.evolución_error[-1])
-print('épocas', len(rn.evolución_error))
-print('convergencia', rn.convergencia)
-graficar(rn.evolución_error)
+#clf = make_pipeline(scaler, rn)
+#clf.fit(X_train, y_train)
+
+#print('efectividad', clf.score(X_test, y_test))
+#print('error', rn.evolución_error[-1])
+#print('épocas', len(rn.evolución_error))
+#print('convergencia', rn.convergencia)
+#graficar(rn.evolución_error)
 
 
 # ### Grid search
 
-# In[465]:
+# In[470]:
 
 from sklearn.model_selection import GridSearchCV
 
@@ -399,20 +440,46 @@ grilla = {
 
 # In[443]:
 
-clf = GridSearchCV(estimador, grilla, cv=5, n_jobs=-1)
-clf.fit(X_train, y_train)
+#clf = GridSearchCV(estimador, grilla, cv=5, n_jobs=-1)
+#clf.fit(X_train, y_train)
 
 
 # In[464]:
 
-graficar(clf.best_estimator_.named_steps['red'].evolución_error)
-plt.savefig('error_mejor_estimador.png')
+#graficar(clf.best_estimator_.named_steps['red'].evolución_error)
+#plt.savefig('error_mejor_estimador.png')
 
 
 # In[452]:
 
-import pickle
+#import pickle
 
-with open('resultados_ej1.pickle', 'wb') as f:
-    pickle.dump(clf.cv_results_, f)
+#with open('resultados_ej1.pickle', 'wb') as f:
+#    pickle.dump(clf.cv_results_, f)
+
+
+# ## Early-stopping, momento, hiperparámetros adaptativos
+
+# In[571]:
+
+rn = Red(early_stopping=True,
+         capas_ocultas=[12],
+         tamaño_lote=10,
+         épocas=2000,
+         tolerancia=1e-6,
+         factor_aprendizaje=0.99,
+         factor_momento=0.5,
+         factor_decaimiento=0.9,
+         épocas_decaimiento=50)
+
+pipe = make_pipeline(StandardScaler(), rn)
+pipe.fit(X_train, y_train)
+
+print('accuracy', est.score(X_test, y_test))
+
+e = graficar(rn.evolución_error)
+v = graficar(rn.evolución_validación)
+plt.legend([v, e], ['validación', 'entrenamiento'])
+
+plt.savefig('early-stopping.png')
 

@@ -15,8 +15,8 @@
   * [x] inicialización de pesos
 2. backpropagation
   * [x] implementación base
-  * [ ] momento
-  * [ ] hiperparámetros adaptativos
+  * [x] momento
+  * [x] hiperparámetros adaptativos
 3. entrenamiento
   * [x] estocástico, batch, mini-batch
   * [ ] early-stopping
